@@ -6,6 +6,7 @@ exports.addTodo=async (req,res)=>{
     try{
         const todo=new Todo({
             task:req.body.task,
+            user:req.user.id,
 
         })
         const saveTodo=await todo.save();
@@ -17,7 +18,7 @@ exports.addTodo=async (req,res)=>{
 }
 exports.viewall=async(req,res)=>{
     try{
-        const todos=await Todo.find()
+        const todos=await Todo.find({user:req.user.id}).populate("user", "name")
         res.status(200).json(todos)
         
     }catch(error){
@@ -26,29 +27,30 @@ exports.viewall=async(req,res)=>{
 
     }
 }
-exports.markAsCompleted=async(req,res)=>{
-    try{
-        // first of all i need the id of the thing
-        const {id}=req.params;
-        const{completed}= req.body;
+exports.markAsCompleted = async (req, res) => {
+    try {
+        const { id } = req.params;
 
-        const updateTodo= await Todo.findByIdAndUpdate(
-            id,{completed},{new:true}
+        const updateTodo = await Todo.findOneAndUpdate(
+            { _id: id, user: req.user.id }, // Ensure both _id and user match
+            { completed: true },           // Update completed status
+            { new: true }                  // Return the updated document
         );
-        if(!updateTodo){
-            return res.status(404).json({error :"task not found"})
+
+        if (!updateTodo) {
+            return res.status(404).json({ error: "Task not found" });
         }
-        res.status(200).json(updateTodo)
 
-    }catch(error){
-        console.error("error updating task",error)
-        res.status(500).json({error:"failed to update task"})
-
+        res.status(200).json(updateTodo);
+    } catch (error) {
+        console.error("Error updating task", error);
+        res.status(500).json({ error: "Failed to update task" });
     }
-}
+};
+
 exports.getCompletedTasks=async(req,res)=>{
     try{
-        const completedTasks= await Todo.find({completed:true})
+        const completedTasks= await Todo.find({user:req.user.id,completed:true})
         res.status(200).json(completedTasks)
 
     }catch(error){
@@ -59,7 +61,7 @@ exports.getCompletedTasks=async(req,res)=>{
 }
 exports.getUncompletedTasks=async(req,res)=>{
     try{
-        const uncompletedTasks= await Todo.find({
+        const uncompletedTasks= await Todo.find({user:req.user.id,
             completed:false
         })
         res.status(200).json(uncompletedTasks)
@@ -71,7 +73,7 @@ exports.getUncompletedTasks=async(req,res)=>{
 exports.deleteTodo=async(req,res)=>{
     try {
         const {id}=req.params;
-        const deletedTodo= await Todo.findByIdAndDelete(id)
+        const deletedTodo= await Todo.findByIdAndDelete({ _id: id, user: req.user.id })
 
         if(!deletedTodo){
             return res.status(404).json({error:"task not found"})
